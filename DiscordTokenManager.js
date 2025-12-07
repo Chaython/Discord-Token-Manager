@@ -7,8 +7,8 @@
 // @author       Chaython
 // @homepageURL  https://github.com/Chaython/Discord-Token-Manager
 // @supportURL   https://github.com/Chaython/Discord-Token-Manager/issues
-// @updateURL    https://update.greasyfork.org/scripts/529038/Discord%20Token%20Getter.meta.js
-// @downloadURL  https://update.greasyfork.org/scripts/529038/Discord%20Token%20Getter.user.js
+// @updateURL    https://update.greasyfork.org/scripts/529038/Discord%20Token%20Manager.meta.js
+// @downloadURL  https://update.greasyfork.org/scripts/529038/Discord%20Token%20Manager.user.js
 // @match        https://discord.com/*
 // @grant        GM_addStyle
 // @grant        GM_setValue
