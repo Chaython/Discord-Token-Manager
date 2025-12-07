@@ -1,4 +1,4 @@
-# 🔑 Discord Token Getter & Login Helper
+# 🔑 Discord Token Manager
 
 ![Version](https://img.shields.io/badge/Version-3.6-blue.svg?style=for-the-badge)
 ![Discord](https://img.shields.io/badge/Discord-Apps-5865F2?style=for-the-badge&logo=discord&logoColor=white)
