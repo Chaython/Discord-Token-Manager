@@ -2,7 +2,7 @@
 // @name         Discord Token Manager
 // @icon         https://www.google.com/s2/favicons?domain=discord.com&sz=256
 // @namespace    http://tampermonkey.net/
-// @version      3.6
+// @version      4.2
 // @description  Get Token, Login via Token, Batch Token Validator & Switcher (Editor & Line Numbers)
 // @author       Chaython
 // @homepageURL  https://github.com/Chaython/Discord-Token-Manager
@@ -53,26 +53,44 @@
                 box-shadow: 0 4px 15px rgba(0,0,0,0.5); font-family: 'Whitney', sans-serif;
                 border: 1px solid #202225;
                 display: flex; flex-direction: column;
-                resize: both; overflow: hidden;
-                min-width: 320px; min-height: 400px;
+                overflow: hidden;
+                min-width: 320px; min-height: 300px;
+                max-width: 95vw; max-height: 95vh;
                 width: 350px; height: 500px;
             }
             .dtg-panel.minimized {
                 width: 40px !important; height: 40px !important;
                 resize: none !important;
-                overflow: hidden; border-radius: 50%;
+                border-radius: 50%;
                 cursor: pointer; background-color: #5865f2; border: 2px solid #fff;
                 align-items: center; justify-content: center;
             }
             .dtg-panel.minimized .dtg-header,
             .dtg-panel.minimized .dtg-content,
-            .dtg-panel.minimized .dtg-tabs { display: none; }
+            .dtg-panel.minimized .dtg-tabs,
+            .dtg-panel.minimized .dtg-resize-handle { display: none; }
             .dtg-panel.minimized::after {
                 content: '🔑'; font-size: 20px; line-height: 40px;
             }
 
+            /* Custom Top-Left Resize Handle */
+            .dtg-resize-handle {
+                position: absolute;
+                top: 0; left: 0;
+                width: 15px; height: 15px;
+                cursor: nwse-resize; /* Diagonal Cursor */
+                z-index: 10000;
+                border-top: 3px solid rgba(255, 255, 255, 0.4);
+                border-left: 3px solid rgba(255, 255, 255, 0.4);
+                border-top-left-radius: 8px;
+                transition: border-color 0.2s;
+            }
+            .dtg-resize-handle:hover {
+                border-color: rgba(255, 255, 255, 0.9);
+            }
+
             .dtg-header {
-                background-color: #5865f2; color: white; padding: 8px 12px;
+                background-color: #5865f2; color: white; padding: 8px 12px 8px 20px; /* Added left padding for handle space */
                 font-weight: 600; font-size: 14px; display: flex; justify-content: space-between;
                 align-items: center; flex-shrink: 0;
             }
@@ -102,6 +120,7 @@
             .dtg-btn.primary { background-color: #5865f2; }
             .dtg-btn.primary:hover { background-color: #4752c4; }
             .dtg-btn.danger { background-color: #ed4245; }
+            .dtg-btn.warning { background-color: #faa61a; color: #000; }
             .dtg-btn.success { background-color: #3ba55c; }
             .dtg-btn-group { display: flex; gap: 5px; flex-shrink: 0; }
 
@@ -119,17 +138,22 @@
                 min-height: 100px;
             }
             .dtg-line-numbers {
-                width: 30px; background-color: #2f3136; color: #72767d;
-                text-align: right; padding: 8px 4px;
+                width: 28px;
+                background-color: #2f3136; color: #72767d;
+                text-align: right; 
+                padding: 8px 4px 8px 0;
                 font-family: monospace; font-size: 12px; line-height: 16px;
                 overflow: hidden; border-right: 1px solid #18191c;
                 user-select: none;
             }
             .dtg-textarea {
                 flex: 1; background: transparent; border: none; color: white;
-                padding: 8px; font-family: monospace; font-size: 12px; line-height: 16px;
+                padding: 8px 8px 8px 6px;
+                padding-right: 24px;
+                padding-bottom: 24px;
+                font-family: monospace; font-size: 12px; line-height: 16px;
                 outline: none; resize: none;
-                white-space: pre; overflow: auto; /* No wrap, scroll horizontal */
+                white-space: pre; overflow: auto;
             }
 
             .dtg-separator { height: 1px; background-color: #40444b; margin: 4px 0; flex-shrink: 0; }
@@ -204,7 +228,6 @@
         if(!textarea || !numbers) return;
 
         const lineCount = textarea.value.split('\n').length;
-        // Efficiently rebuild line numbers
         numbers.innerHTML = Array.from({length: lineCount}, (_, i) => i + 1).join('<br>');
     };
 
@@ -228,32 +251,68 @@
         const textarea = document.getElementById('dtg-batch-input');
         if (!textarea) return;
 
-        const raw = textarea.value;
-        // Split by lines but keep track of original index
+        let raw = textarea.value;
         const allLines = raw.split(/\r?\n/);
 
-        // Save to storage
-        safeSetValue('dtg_saved_tokens', raw);
+        // --- Step 1: Filter exact duplicates and update Textarea ---
+        const seenTokens = new Set();
+        const uniqueLines = [];
+
+        for (const line of allLines) {
+            const trimmed = line.trim();
+            if (trimmed.length < 5) continue;
+
+            // Only add if we haven't seen this token string before
+            if (!seenTokens.has(trimmed)) {
+                seenTokens.add(trimmed);
+                uniqueLines.push(trimmed);
+            }
+        }
+
+        // Add extra empty line at the end for easy pasting
+        const finalText = uniqueLines.join('\n') + (uniqueLines.length > 0 ? '\n' : '');
+
+        // Update UI with filtered list + empty line
+        textarea.value = finalText;
+        updateLineNumbers();
+        safeSetValue('dtg_saved_tokens', finalText);
 
         const resultsDiv = document.getElementById('dtg-batch-results');
         resultsDiv.innerHTML = '<div style="text-align:center; color:#888;">Checking...</div>';
 
+        // --- Step 2: Validate and Handle Duplicate Accounts ---
         let html = '';
+        const accountCounts = {}; // Track usage of usernames to handle duplicate accounts
 
-        // Loop through all lines
-        for (let i = 0; i < allLines.length; i++) {
-            const line = allLines[i];
-            const token = line.trim();
+        for (let i = 0; i < uniqueLines.length; i++) {
+            const token = uniqueLines[i];
+            const cleanToken = token.replace(/^"|"$/g, '');
             const lineNumber = i + 1;
 
-            if (token.length < 5) continue; // Skip empty/garbage lines
-
-            const cleanToken = token.replace(/^"|"$/g, '');
             const res = await validateToken(cleanToken);
             const statusClass = res.valid ? 'dtg-status-valid' : 'dtg-status-invalid';
-            const name = res.valid ? `${res.username}` : 'Invalid / Locked';
 
-            const loginBtn = res.valid ? `<button class="dtg-btn dtg-btn-sm primary dtg-action-login" data-token="${cleanToken}">Login</button>` : '';
+            let name = 'Invalid / Locked';
+            let loginBtn = '';
+
+            if (res.valid) {
+                let baseName = `${res.username}`;
+                if (res.discriminator && res.discriminator !== '0') {
+                    baseName += `#${res.discriminator}`;
+                }
+
+                // Handle Name Collision (Duplicate Accounts)
+                if (accountCounts[baseName] === undefined) {
+                    accountCounts[baseName] = 0;
+                    name = baseName;
+                } else {
+                    accountCounts[baseName]++;
+                    name = `${baseName} (Copy ${accountCounts[baseName]})`;
+                }
+
+                loginBtn = `<button class="dtg-btn dtg-btn-sm primary dtg-action-login" data-token="${cleanToken}">Login</button>`;
+            }
+
             const copyBtn = `<button class="dtg-btn dtg-btn-sm dtg-action-copy" data-token="${cleanToken}">Copy</button>`;
 
             html += `
@@ -269,14 +328,14 @@
                     </div>
                 </div>
             `;
-            // Update UI progressively
+
             resultsDiv.innerHTML = html;
             await new Promise(r => setTimeout(r, 200));
         }
 
         if (!html) resultsDiv.innerHTML = '<div style="text-align:center;">No valid tokens found</div>';
 
-        // Event Delegation for better performance
+        // Event Delegation
         resultsDiv.querySelectorAll('.dtg-action-login').forEach(btn => {
             btn.addEventListener('click', (e) => { e.stopPropagation(); loginWithToken(btn.dataset.token); });
         });
@@ -293,6 +352,40 @@
         });
     };
 
+    const removeInvalidLines = async () => {
+        const textarea = document.getElementById('dtg-batch-input');
+        const resultsDiv = document.getElementById('dtg-batch-results');
+        if (!textarea) return;
+
+        const raw = textarea.value;
+        const allLines = raw.split(/\r?\n/);
+        const validLines = [];
+
+        resultsDiv.innerHTML = '<div style="text-align:center; color:#faa61a;">Validating & Removing Invalid...</div>';
+
+        for (const line of allLines) {
+            const token = line.trim();
+            if (token.length < 5) continue;
+            
+            const cleanToken = token.replace(/^"|"$/g, '');
+            const res = await validateToken(cleanToken);
+            
+            if (res.valid) {
+                validLines.push(token);
+            }
+        }
+
+        // Update Textarea
+        const newText = validLines.join('\n') + (validLines.length > 0 ? '\n' : '');
+        textarea.value = newText;
+        updateLineNumbers();
+        safeSetValue('dtg_saved_tokens', newText);
+
+        // Re-run check to update visual list
+        runBatchCheck();
+    };
+
+
     // --- UI Creation ---
     const createPanel = () => {
         if (document.getElementById('dtg-panel')) return;
@@ -302,6 +395,7 @@
         panel.className = 'dtg-panel';
 
         panel.innerHTML = `
+            <div id="dtg-resize-handle" class="dtg-resize-handle" title="Drag to Resize"></div>
             <div class="dtg-header">
                 <span>Discord Tools</span>
                 <div class="dtg-controls">
@@ -357,6 +451,7 @@
                 </div>
                 <div class="dtg-btn-group">
                     <button id="dtg-batch-check" class="dtg-btn success" style="flex:2;">Check & List</button>
+                    <button id="dtg-batch-remove-invalid" class="dtg-btn warning" style="flex:2;">Remove Invalid</button>
                     <button id="dtg-batch-clear" class="dtg-btn danger" style="flex:1;">Clear</button>
                 </div>
                 <div class="dtg-separator"></div>
@@ -378,6 +473,7 @@
             }
 
             document.getElementById('dtg-batch-check').onclick = runBatchCheck;
+            document.getElementById('dtg-batch-remove-invalid').onclick = removeInvalidLines;
             document.getElementById('dtg-batch-clear').onclick = () => {
                 input.value = '';
                 document.getElementById('dtg-batch-results').innerHTML = '';
@@ -388,6 +484,36 @@
 
         renderSingle();
         renderBatch();
+
+        // --- Custom Resize Logic (Top-Left) ---
+        const handle = document.getElementById('dtg-resize-handle');
+        handle.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const startWidth = parseInt(document.defaultView.getComputedStyle(panel).width, 10);
+            const startHeight = parseInt(document.defaultView.getComputedStyle(panel).height, 10);
+
+            function doDrag(e) {
+                // Since anchored bottom-right:
+                // Moving Left (negative clientX delta) -> Increase Width
+                // Moving Up (negative clientY delta) -> Increase Height
+                const width = startWidth + (startX - e.clientX);
+                const height = startHeight + (startY - e.clientY);
+
+                // Apply with min-max constraints matching CSS
+                if (width > 320 && width < (window.innerWidth - 20)) panel.style.width = width + 'px';
+                if (height > 300 && height < (window.innerHeight - 20)) panel.style.height = height + 'px';
+            }
+
+            function stopDrag() {
+                document.removeEventListener('mousemove', doDrag);
+                document.removeEventListener('mouseup', stopDrag);
+            }
+
+            document.addEventListener('mousemove', doDrag);
+            document.addEventListener('mouseup', stopDrag);
+        });
 
         // Tabs & Controls
         const switchTab = (tabName) => {
@@ -401,7 +527,6 @@
             } else {
                 document.getElementById('dtg-content-single').style.display = 'none';
                 document.getElementById('dtg-content-batch').style.display = 'flex';
-                // Trigger line number update on tab switch to fix rendering glitches
                 updateLineNumbers();
             }
             safeSetValue('dtg_last_tab', tabName);
