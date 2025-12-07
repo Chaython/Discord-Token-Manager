@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name         Discord Token Getter & Login Helper
+// @icon https://www.google.com/s2/favicons?domain=discord.com&sz=256
 // @namespace    http://tampermonkey.net/
-// @version      2.9
+// @version      2.10
 // @description  Get Token, Login via Token (Main Page, Add Account, Console), Minimizable Panel. Repo: https://github.com/Chaython/Discord-Token-Manager
 // @author       Chaython
 // @homepageURL  https://github.com/Chaython/Discord-Token-Manager
