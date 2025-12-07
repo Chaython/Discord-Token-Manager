@@ -2,7 +2,7 @@
 // @name         Discord Token Manager
 // @icon         https://www.google.com/s2/favicons?domain=discord.com&sz=256
 // @namespace    http://tampermonkey.net/
-// @version      4.2
+// @version      4.4
 // @description  Get Token, Login via Token, Batch Token Validator & Switcher (Editor & Line Numbers)
 // @author       Chaython
 // @homepageURL  https://github.com/Chaython/Discord-Token-Manager
@@ -57,20 +57,39 @@
                 min-width: 320px; min-height: 300px;
                 max-width: 95vw; max-height: 95vh;
                 width: 350px; height: 500px;
+                transition: width 0.1s, height 0.1s, border-radius 0.2s; /* Smooth Toggle */
             }
+
+            /* --- STRICT MINIMIZED STATE --- */
             .dtg-panel.minimized {
-                width: 40px !important; height: 40px !important;
+                width: 40px !important;
+                height: 40px !important;
+                min-width: 0 !important;
+                min-height: 0 !important;
+                padding: 0 !important;
+                border-radius: 50% !important;
+                overflow: hidden !important;
                 resize: none !important;
-                border-radius: 50%;
-                cursor: pointer; background-color: #5865f2; border: 2px solid #fff;
-                align-items: center; justify-content: center;
+                background: #5865f2 !important;
+                border: 2px solid #fff !important;
+                cursor: pointer !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
             }
-            .dtg-panel.minimized .dtg-header,
-            .dtg-panel.minimized .dtg-content,
-            .dtg-panel.minimized .dtg-tabs,
-            .dtg-panel.minimized .dtg-resize-handle { display: none; }
+
+            /* Hide EVERY child element when minimized */
+            .dtg-panel.minimized > * {
+                display: none !important;
+            }
+
+            /* Show Key Emoji */
             .dtg-panel.minimized::after {
-                content: '🔑'; font-size: 20px; line-height: 40px;
+                content: '🔑';
+                font-size: 20px;
+                line-height: 1;
+                display: block;
             }
 
             /* Custom Top-Left Resize Handle */
@@ -90,7 +109,7 @@
             }
 
             .dtg-header {
-                background-color: #5865f2; color: white; padding: 8px 12px 8px 20px; /* Added left padding for handle space */
+                background-color: #5865f2; color: white; padding: 8px 12px 8px 20px;
                 font-weight: 600; font-size: 14px; display: flex; justify-content: space-between;
                 align-items: center; flex-shrink: 0;
             }
@@ -140,7 +159,7 @@
             .dtg-line-numbers {
                 width: 28px;
                 background-color: #2f3136; color: #72767d;
-                text-align: right; 
+                text-align: right;
                 padding: 8px 4px 8px 0;
                 font-family: monospace; font-size: 12px; line-height: 16px;
                 overflow: hidden; border-right: 1px solid #18191c;
@@ -366,10 +385,10 @@
         for (const line of allLines) {
             const token = line.trim();
             if (token.length < 5) continue;
-            
+
             const cleanToken = token.replace(/^"|"$/g, '');
             const res = await validateToken(cleanToken);
-            
+
             if (res.valid) {
                 validLines.push(token);
             }
