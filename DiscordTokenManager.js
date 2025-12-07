@@ -1,10 +1,14 @@
 // ==UserScript==
-// @name         Discord Token Getter & Batch Login
+// @name         Discord Token Manager
 // @icon         https://www.google.com/s2/favicons?domain=discord.com&sz=256
 // @namespace    http://tampermonkey.net/
 // @version      3.6
 // @description  Get Token, Login via Token, Batch Token Validator & Switcher (Editor & Line Numbers)
 // @author       Chaython
+// @homepageURL  https://github.com/Chaython/Discord-Token-Manager
+// @supportURL   https://github.com/Chaython/Discord-Token-Manager/issues
+// @updateURL    https://update.greasyfork.org/scripts/529038/Discord%20Token%20Getter.meta.js
+// @downloadURL  https://update.greasyfork.org/scripts/529038/Discord%20Token%20Getter.user.js
 // @match        https://discord.com/*
 // @grant        GM_addStyle
 // @grant        GM_setValue
